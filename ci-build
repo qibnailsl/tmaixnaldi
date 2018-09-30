@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+git clean -f -x -d
+git checkout .
+python3 "ci-build.py"
+
+exitCode=$?
+echo "exitCode: $exitCode" 
+exit $exitCode
