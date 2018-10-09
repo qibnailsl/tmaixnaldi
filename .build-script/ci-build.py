@@ -5,6 +5,7 @@ import shutil
 import os
 import os.path
 import requests
+import modules.keytool as keytool
 
 def extract_all_with_permission(zf, target_dir):
     ZIP_UNIX_SYSTEM = 3
@@ -26,6 +27,19 @@ def getBuildConfig():
     response = requests.get(serviceHost + "/api/builds/" + buildId + "/build-config")
     response.raise_for_status()
     return response.json()
+
+def generateCertificate(buildConfig):
+    buildConfig['signingKeyStorePassword'] = '9ce711aae2259376733117020c803d8ccc14d828'
+    buildConfig['signingKey'] = 'cert'
+    buildConfig['signingKeyPassword'] = '9ce711aae2259376733117020c803d8ccc14d828'
+    keytool.generateKeystore(
+        keystorePath='./app/signingKeyStore.jks',
+        storePassword=buildConfig['signingKeyStorePassword'],
+        keyAlias=buildConfig['signingKey'],
+        keyPassword=buildConfig['signingKeyPassword'],
+        distingiushedName=keytool.generateDistingiushedName(
+            commonName=buildConfig['applicationId']),
+        validity=365*25)
 
 def saveKeyStore(keyStore):
     fp = open("./app/signingKeyStore.jks", "wb")
@@ -49,7 +63,7 @@ def saveAppIconArchieve(applicationIcon):
 
 def unzipAppIcon():
     appArchieve = ZipFile("./appIcon.zip")
-    appArchieve.extractall("./")
+    appArchieve.extractall("./appIcon")
     appArchieve.close()
     os.remove('appIcon.zip')
 
@@ -75,12 +89,12 @@ def build(
     signingKeyPassword):
     command = './gradlew assembleRelease' \
         + ' -Purl=\\"' + url + '\\"' \
-        + ' -PapplicationId=' + applicationId \
-        + ' -PappName=' + applicationName \
-        + ' -PversionName=' + versionName \
-        + ' -PsigningKeyStorePassword=' + signingKeyStorePassword \
-        + ' -PsigningKey=' + signingKey \
-        + ' -PsigningKeyPassword=' + signingKeyPassword
+        + ' -PapplicationId="' + applicationId + '"' \
+        + ' -PappName="' + applicationName + '"' \
+        + ' -PversionName="' + versionName + '"' \
+        + ' -PsigningKeyStorePassword="' + signingKeyStorePassword + '"' \
+        + ' -PsigningKey="' + signingKey + '"' \
+        + ' -PsigningKeyPassword="' + signingKeyPassword + '"'
     #  -PtargetSdkVersion={targetSdkVersion} -PversionCode={versionCode}
     # print(command)
     return os.system(command)
@@ -111,7 +125,11 @@ unzipWebAppTemplateSource(os.environ['SOURCE_PASSWORD'])
 saveAppIconArchieve(buildConfig['applicationIcon'])
 unzipAppIcon()
 overrideAppIcon()
-saveKeyStore(buildConfig['signingKeyStore'])
+
+if (buildConfig['signingKeyStore']):
+    saveKeyStore(buildConfig['signingKeyStore'])
+else:
+    generateCertificate(buildConfig)
 
 buildId = buildConfig['buildId']
 print("Build Start: {0}".format(buildId))

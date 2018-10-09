@@ -2,7 +2,7 @@
 
 git clean -f -x -d
 git checkout .
-python3 "ci-build.py"
+python3 "./.build-script/ci-build.py"
 
 exitCode=$?
 echo "exitCode: $exitCode" 
